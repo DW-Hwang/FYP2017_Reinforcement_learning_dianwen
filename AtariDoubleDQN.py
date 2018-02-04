@@ -120,7 +120,7 @@ class doubleDQN:
                     else:
                         target[action] = reward
                         y_output.append(target)
-                loss = self.QModel.train_on_batch(np.array(x_input), y_output)
+                loss = self.QModel.train_on_batch(np.array(x_input), np.array(y_output))
                 self.loss_history.append(loss)
 
             # Updating our target model with small delay.
@@ -176,7 +176,7 @@ class Replay_Buffer:
 train_episode = 200000
 time_steps = 20000
 batch_size = 85
-epsilon_decay = 0.000485
+epsilon_decay = 0.000575
 epsilon = 1
 gamma = 0.99
 play_episode = 50

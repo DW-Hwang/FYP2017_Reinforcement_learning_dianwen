@@ -123,7 +123,7 @@ class doubleDQN:
                     # updating our network
                     x_input.append(stateList)
                     target = list(self.QModel.predict(stateList[None,])[0])
-                    if not done:
+                    if not done and reward >= 0:
                         Qtarget_ = list(self.Qtarget.predict(next_stateList[None,])[0])
                         action_next = np.argmax(self.QModel.predict(next_stateList[None,]))
                         target[action] = reward + self.gamma * Qtarget_[action_next]

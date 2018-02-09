@@ -15,7 +15,7 @@ import time
 #####    Dueling Deep-Q-Nerwork      #######
 ############################################
 
-env = gym.make("Breakout-v0")
+env = gym.make("BreakoutDeterministic-v4")
 env._max_episode_steps = 100000
 env.reset()
 
@@ -45,6 +45,7 @@ class DuelingDQN:
         frame = imresize(frame, size=(84, 84), interp='nearest') # Resize to 84,84,1
         return frame
 
+    # Dueling Deep-Q-Network
     def BuildModel(self):
         input_layer = Input(shape= (84,84,4))
         conv1 = Conv2D(32, 8, strides=(4,4), activation= "relu")(input_layer)
@@ -52,13 +53,14 @@ class DuelingDQN:
         conv3 = Conv2D(64, 3, strides= (1,1), activation= "relu")(conv2)
         flatten = Flatten()(conv3)
         # computing advantage & value separately
-        fc1 = Dense(512, activation= "relu")(flatten)
-        advantage = Dense(self.env.action_space.n)(fc1)
+        advantage = Dense(512, activation= "relu")(flatten)
+        advantage = Dense(self.env.action_space.n)(advantage)
         advantage = Lambda(lambda adv: adv - tf.reduce_mean(adv,
                                                             axis=-1, keep_dims=True))(advantage)
-        fc2 = Dense(512)(flatten)
-        value = Dense(1, activation= "relu")(fc2)
+        value = Dense(512, activation= "relu")(flatten)
+        value = Dense(1, activation= "relu")(value)
         value = Lambda(lambda value: tf.tile(value, [1, self.env.action_space.n]))(value)
+
         # policy = [advantage - mean(advantage)] + value
         policy = keras.layers.Add()([value,advantage])
         model = Model(inputs= [input_layer], outputs= [policy])
@@ -88,15 +90,27 @@ class DuelingDQN:
             # initialise stateList- shape: (4,84,84)
             stateList = [self.preprocIMG(self.env.reset())] * 4
             total_reward = 0
+            ale_lives = 5
+            loss = 0
 
-            # collect replay experience
+            # Collect replay experience
             for _ in range(time_step):
                 # uncomment "self.env.render()" to watch agent's live play
                 # self.env.render()
                 action = self.choose_action(stateList)
                 next_state, reward, done, info = self.env.step(action)
+                # create next state stacked array
                 next_stateList = stateList[1:]
                 next_stateList.append(self.preprocIMG(next_state))
+                # redefine our reward system:
+                # reward = -1 :failing to catch the ball and losing a live
+                # reward = +1 : hitting some bricks
+                agent_reward = reward
+                if info["ale.lives"] < ale_lives:
+                    agent_reward = -1
+                    ale_lives = info["ale.lives"]
+                
+                # Add new experience to buffer
                 self.memory.addMemory((stateList, action, reward, next_stateList, done))
                 total_reward += reward
                 stateList = next_stateList
@@ -105,7 +119,7 @@ class DuelingDQN:
                 if done:
                     break
 
-            # training with memory - array( state, action, reward, next state, done)
+            # Training phase
             if len(self.memory.getMemory()) >= self.batch_size:
                 minibatch = self.memory.getMiniBatch(self.batch_size)
                 x_input = []
@@ -131,7 +145,7 @@ class DuelingDQN:
                 loss = self.QModel.train_on_batch(np.array(x_input), np.array(y_output))
 
             # Updating our target model with small delay.
-            if self.step_count % 3 == 0:
+            if self.step_count % 30 == 0:
                 self.update_target()
 
             # decay epsilon
@@ -163,7 +177,7 @@ class DuelingDQN:
 
 class Replay_Buffer:
     def __init__(self):
-        self.buffer = deque(maxlen=6000)
+        self.buffer = deque(maxlen=500000)
 
     def getMemory(self):
         return self.buffer
@@ -178,10 +192,10 @@ class Replay_Buffer:
 
 
 #Set hyperparameters
-train_episode = 200000
-time_steps = 20000
-batch_size = 85
-epsilon_decay = 0.000575
+train_episode = 40000
+time_steps = 100000
+batch_size = 128
+epsilon_decay = 0.000685
 epsilon = 1
 gamma = 0.99
 play_episode = 50
@@ -193,4 +207,8 @@ Breakout009 = DuelingDQN(env, batch_size, epsilon_decay, epsilon, gamma)
 start = time.time()
 Breakout009.train_agent(train_episode,time_steps)
 end = time.time()
+print("Hours took to train: ", (end-start)/3600)
+
+# saving trained model
+Breakout009.QModel.save("DuelDQN_model.h5")
 Breakout009.play_agent(play_episode, time_steps)

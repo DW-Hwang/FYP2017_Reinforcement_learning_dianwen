@@ -133,7 +133,7 @@ class DuelingDQN:
                     # updating our network
                     x_input.append(stateList)
                     target = list(self.QModel.predict(stateList[None,])[0])
-                    if not done:
+                    if not done and reward >= 0:
                         target[action] = reward + self.gamma * \
                                          np.amax(self.Qtarget.predict(next_stateList[None,]))
                         y_output.append(target)

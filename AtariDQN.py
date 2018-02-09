@@ -14,7 +14,7 @@ import time
 #####         Deep-Q-Nerwork         #######
 ############################################
 
-env = gym.make("Breakout-v0")
+env = gym.make("BreakoutDeterministic-v4")
 env._max_episode_steps = 100000
 env.reset()
 

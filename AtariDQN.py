@@ -81,24 +81,35 @@ class DeepQNetwork:
             #initialise stateList- shape: (4,84,84)
             stateList = [self.preprocIMG(self.env.reset())]*4
             total_reward = 0
+            ale_lives = 5
+            loss = 0
 
-            #collect replay experience
+            # Collect replay experience
             for _ in range(time_step):
                 # uncomment "self.env.render()" to watch agent's live play
                 #self.env.render()
                 action = self.choose_action(stateList)
                 next_state, reward, done, info = self.env.step(action)
+                # create next state stacked array
                 next_stateList = stateList[1:]
                 next_stateList.append(self.preprocIMG(next_state))
+                # redefine our reward system:
+                # reward = -1 :failing to catch the ball and losing a live
+                # reward = +1 : hitting some bricks
+                agent_reward = reward
+                if info["ale.lives"] < ale_lives:
+                    agent_reward = -1
+                    ale_lives = info["ale.lives"]
+                
+                # Add new experience to buffer
                 self.memory.addMemory((stateList, action, reward, next_stateList, done))
                 total_reward += reward
                 stateList = next_stateList
                 self.step_count += 1
-
                 if done:
-                    break
+                    break # reset our episode when we lose all 5 lives
 
-            #training with memory - array( state, action, reward, next state, done)
+            # Training phase
             if len(self.memory.getMemory()) >= self.batch_size:
                 minibatch = self.memory.getMiniBatch(self.batch_size)
                 x_input = []
@@ -113,7 +124,7 @@ class DeepQNetwork:
                     # updating our network
                     x_input.append(stateList)
                     target = list(self.QModel.predict(stateList[None,])[0])
-                    if not done:
+                    if not done and reward >= 0:
                         target[action] = reward + self.gamma *\
                                          np.amax(self.Qtarget.predict(next_stateList[None,]))
                         y_output.append(target)
@@ -124,8 +135,7 @@ class DeepQNetwork:
                 loss = self.QModel.train_on_batch(np.array(x_input), np.array(y_output))
 
             # Updating our target model with small delay.
-            # This is to prevent our model to spiral out of control
-            if self.step_count % 3 == 0:
+            if self.step_count % 30 == 0:
                 self.update_target()
 
             #decay epsilon
@@ -136,6 +146,7 @@ class DeepQNetwork:
 
 
     def play_agent(self, episodes, time_step):
+        # record historical play reward
         self.playscore = []
         for i in range(episodes):
             #initialise state
@@ -159,7 +170,7 @@ class DeepQNetwork:
 
 class Replay_Buffer:
     def __init__(self):
-        self.buffer = deque(maxlen= 6000)
+        self.buffer = deque(maxlen= 500000)
 
     def getMemory(self):
         return self.buffer
@@ -176,10 +187,10 @@ class Replay_Buffer:
 
 
 #Set hyperparameters
-train_episode = 200000
-time_steps = 20000
-batch_size = 85
-epsilon_decay = 0.000575
+train_episode = 40000
+time_steps = 100000
+batch_size = 128
+epsilon_decay = 0.000685
 epsilon = 1
 gamma = 0.99
 play_episode = 50
@@ -191,9 +202,8 @@ Breakout007 = DeepQNetwork(env, batch_size, epsilon_decay, epsilon, gamma)
 start = time.time()
 Breakout007.train_agent(train_episode,time_steps)
 end = time.time()
+print("Hours took to train: ", (end-start)/3600)
+
+# saving trained model
+Breakout007.QModel.save("DQN_model.h5")
 Breakout007.play_agent(play_episode,time_steps)
-
-
-
-
-

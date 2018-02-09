@@ -115,9 +115,8 @@ class DuelingDQN:
                 total_reward += reward
                 stateList = next_stateList
                 self.step_count += 1
-
                 if done:
-                    break
+                    break # reset our episode when we lose all 5 lives
 
             # Training phase
             if len(self.memory.getMemory()) >= self.batch_size:

@@ -27,7 +27,7 @@ Velocity has a range of (-0.07, 0.07)
 env = gym.make("MountainCar-v0")
 
 # Set our hyper parameters
-episodes = 30000
+episodes = 20000
 LearnRate = 0.8
 gamma = 0.995
 reward_history = []

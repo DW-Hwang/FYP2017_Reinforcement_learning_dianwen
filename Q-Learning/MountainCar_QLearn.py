@@ -2,9 +2,8 @@ import gym
 import numpy as np
 import pandas as pd
 import time
-import matplotlib
-matplotlib.style.use('ggplot')
 import matplotlib.pyplot as plt
+plt.style.use('ggplot')
 
 
 """

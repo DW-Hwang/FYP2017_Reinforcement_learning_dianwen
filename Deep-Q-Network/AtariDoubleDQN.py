@@ -168,7 +168,7 @@ class doubleDQN:
 
 class Replay_Buffer:
     def __init__(self):
-        self.buffer = deque(maxlen= 500000)
+        self.buffer = deque(maxlen= 100000)
 
     def getMemory(self):
         return self.buffer
@@ -184,7 +184,7 @@ class Replay_Buffer:
 
 
 # Set hyperparameters
-train_episode = 40000
+train_episode = 30000
 time_steps = 100000
 batch_size = 128
 epsilon_decay = 0.000685

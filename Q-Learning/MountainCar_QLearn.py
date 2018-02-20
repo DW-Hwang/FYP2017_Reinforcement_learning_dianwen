@@ -90,7 +90,7 @@ for i in range(episodes):
         play_reward = reward
         # we give out positive reward when the car managed to reach the target point
         if done and step > -200:
-            play_reward = 10
+            play_reward = 1
 
         # update Q table
         Q[state, action] = Q[state, action] + LearnRate*(play_reward + gamma*
@@ -119,4 +119,22 @@ plt.xlabel("Episodes")
 plt.ylabel("Episode Rewards (Average)")
 plt.title("Episode Rewards over Time (Avg. over window size = 25)")
 plt.legend()
+
+# plotting action-value function
+from mpl_toolkits.mplot3d import Axes3D
+Z = []
+for i in range(len(position_space)):
+    for j in range(len(velocity_space)):
+        z = np.max(Q[return_state((position_space[i], velocity_space[j])),:])
+        Z.append(z)
+x, y = np.meshgrid(position_space, velocity_space)
+z = np.array(Z).reshape((100,100))
+
+fig = plt.figure()
+ax=Axes3D(fig)
+ax.plot_surface(x,y,-z, cstride=1, rstride=1, color= "salmon")
+ax.set_xlabel('position')
+ax.set_ylabel('velocity')
+ax.set_zlabel('$-max_a Q(s,a)$')
+
 

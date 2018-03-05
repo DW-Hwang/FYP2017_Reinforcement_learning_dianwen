@@ -4,19 +4,29 @@ import numpy as np
 from collections import deque
 import keras
 from keras.models import Model
-from keras.layers import Dense, Input, Flatten, Conv2D
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
+from keras.layers import Dense, Input, Flatten, Conv2D, LSTM, TimeDistributed, Reshape, Permute
 from keras.optimizers import Adam
 from scipy.misc import imresize
 import time
+import os as os
+import pandas as pd
 import matplotlib.pyplot as plt
 
 ############################################
 #####      Double Deep-Q-Nerwork     #######
 ############################################
 
+# Deterministic implements the frame skipping 
 env = gym.make("BreakoutDeterministic-v4")
 env._max_episode_steps = 100000
 env.reset()
+
+#uncheck if you are using GPU to run
+#gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction= 0.30)
+#sess = tf.Session(config= tf.ConfigProto(gpu_options= gpu_options))
+#set_session(sess)
 
 class doubleDQN:
     def __init__(self, env, batch_size, epsilon_decay, epsilon, gamma):
@@ -36,24 +46,27 @@ class doubleDQN:
     # Pre-process observed state(image) for faster computation
     def preprocIMG(self, frame):
         frame = frame[35:195]  # crop vertically, removing score board
-        frame = frame[::2, ::2, 0]  # downsample by factor of 2
+        frame = frame[::2, ::2, 0]  # greyscale
         frame[frame == 144] = 0  # remove background
         frame[frame == 109] = 0  # remove background
         frame[frame != 0] = 1  # Set 1 to the Rest (paddle, ball)
         frame = imresize(frame, size=(84, 84), interp='nearest') # Resize to 84,84,1
         return frame
 
-    # Double Deep Q Network
+    # Double Recurrent Deep Q Network
     def BuildModel(self):
         input_layer = Input(shape= (84,84,4))
-        conv1 = Conv2D(32, 8, strides=(4,4), activation= "relu")(input_layer)
-        conv2 = Conv2D(64, 4, strides= (2,2), activation= "relu")(conv1)
-        conv3 = Conv2D(64, 3, strides= (1,1), activation= "relu")(conv2)
-        flatten = Flatten()(conv3)
-        fully_connected_layer = Dense(512, activation= "relu")(flatten)
-        output = Dense(self.env.action_space.n)(fully_connected_layer)
+        input_data_expanded = Reshape((84, 84, 4, 1), input_shape=(84,84,4))(input_layer)
+        input_data_TimeDistributed = Permute((3, 1, 2, 4), input_shape=(84,84,4))(input_data_expanded)
+        conv1 = TimeDistributed(Conv2D(32, 8, strides=(4,4), activation= "relu"))(input_data_TimeDistributed)
+        conv2 = TimeDistributed(Conv2D(64, 4, strides= (2,2), activation= "relu"))(conv1)
+        conv3 = TimeDistributed(Conv2D(64, 3, strides= (1,1), activation= "relu"))(conv2)
+        flatten = TimeDistributed(Flatten())(conv3)
+        fully_connected_layer = TimeDistributed(Dense(512, activation= "relu"))(flatten)
+        LSTM_layer = LSTM(512, return_sequences= False,stateful=False, input_shape=(4, 512))(fully_connected_layer)
+        output = Dense(self.env.action_space.n)(LSTM_layer)
         model = Model(inputs= [input_layer], outputs= [output])
-        model.compile(optimizer=Adam(lr=0.001), loss="mse")
+        model.compile(optimizer= Adam(lr=0.001), loss="mse")
         return model
 
     def update_target(self):
@@ -73,42 +86,42 @@ class doubleDQN:
         self.epsilon = self.minEpsilon + \
                        0.90*(np.exp(-self.epsilon_decay * self.step_count))
 
-
     def train_agent(self, episodes, time_step):
 
-        for i in range(episodes):
+        for epi in range(episodes):
             #initialise stateList- shape: (4,84,84)
             stateList = [self.preprocIMG(self.env.reset())] * 4
             total_reward = 0
             ale_lives = 5
-            loss = 0
+            loss = 0.
 
-            # Collect replay experience
+            #collect replay experience
             for _ in range(time_step):
                 # uncomment "self.env.render()" to watch agent's live play
                 #self.env.render()
                 action = self.choose_action(stateList)
                 next_state, reward, done, info = self.env.step(action)
-                # create next state stacked array
                 next_stateList = stateList[1:]
                 next_stateList.append(self.preprocIMG(next_state))
-                # redefine our reward system:
+
+                '''we change the reward system in this env'''
                 # reward = -1 :failing to catch the ball and losing a live
                 # reward = +1 : hitting some bricks
                 agent_reward = reward
                 if info["ale.lives"] < ale_lives:
                     agent_reward = -1
                     ale_lives = info["ale.lives"]
-                    
-                # Add new experience to buffer
-                self.memory.addMemory((stateList, action, reward, next_stateList, done))
+
+                self.memory.addMemory((stateList, action, agent_reward, next_stateList, done))
                 total_reward += reward
                 stateList = next_stateList
                 self.step_count += 1
+
                 if done:
-                    break # reset our episode when we lose all 5 lives
+                    break
 
             # Training phase
+            # we only start training after collecting 20000 frames
             if len(self.memory.getMemory()) >= self.batch_size:
                 minibatch = self.memory.getMiniBatch(self.batch_size)
                 x_input = []
@@ -141,7 +154,7 @@ class doubleDQN:
             # decay epsilon
             self.epsilon_update()
 
-            print("Running Episode: ", i + 1, ", Reward: ", total_reward, ", loss: ", loss)
+            print("Running Episode: ", epi + 1, ", Scores: ", total_reward, ", loss: ", loss)
             self.reward_history.append(total_reward)
 
     def play_agent(self, episodes, time_step):
@@ -177,16 +190,20 @@ class Replay_Buffer:
         self.buffer.append(experience)
 
     def getMiniBatch(self, batch_size):
-        index = np.random.choice(np.arange(len(self.buffer)),
+        output = []
+        index = np.random.choice(np.arange(8, len(self.buffer)),
                                  size=batch_size, replace=False)
-        return [self.buffer[i] for i in index]
+        for item in index: 
+            for i in np.arange(item-8,item):
+                output.append(self.buffer[i])
+        return output
 
 
 
 # Set hyperparameters
 train_episode = 30000
 time_steps = 100000
-batch_size = 128
+batch_size = 32
 epsilon_decay = 0.000685
 epsilon = 1
 gamma = 0.99

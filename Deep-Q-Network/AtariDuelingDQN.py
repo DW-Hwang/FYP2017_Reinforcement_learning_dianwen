@@ -38,7 +38,7 @@ class DuelingDQN:
     # Pre-process observed state(image) for faster computation
     def preprocIMG(self, frame):
         frame = frame[35:195]  # crop vertically, removing score board
-        frame = frame[::2, ::2, 0]  # downsample by factor of 2
+        frame = frame[::2, ::2, 0]  # greyscale
         frame[frame == 144] = 0  # remove background
         frame[frame == 109] = 0  # remove background
         frame[frame != 0] = 1  # Set 1 to the Rest (paddle, ball)

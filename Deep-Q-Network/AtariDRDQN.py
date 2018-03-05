@@ -23,12 +23,12 @@ env = gym.make("BreakoutDeterministic-v4")
 env._max_episode_steps = 100000
 env.reset()
 
-#uncheck if you are using GPU to run
-#gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction= 0.30)
-#sess = tf.Session(config= tf.ConfigProto(gpu_options= gpu_options))
-#set_session(sess)
+# uncheck if you are using GPU to run
+# gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction= 0.30)
+# sess = tf.Session(config= tf.ConfigProto(gpu_options= gpu_options))
+# set_session(sess)
 
-class doubleDQN:
+class double_recurrentDQN:
     def __init__(self, env, batch_size, epsilon_decay, epsilon, gamma):
         self.env = env
         self.memory = Replay_Buffer()
@@ -212,12 +212,12 @@ np.random.seed(123)
 
 
 """Train Session"""
-Breakout008 = doubleDQN(env, batch_size, epsilon_decay, epsilon, gamma)
+Breakout008 = double_recurrentDQN(env, batch_size, epsilon_decay, epsilon, gamma)
 start = time.time()
 Breakout008.train_agent(train_episode, time_steps)
 end = time.time()
 print("Hours took to train: ", (end-start)/3600)
 
 # saving trained model
-Breakout008.QModel.save("DDQN_model.h5")
+Breakout008.QModel.save("DRDQN_model.h5")
 Breakout008.play_agent(play_episode, time_steps)

@@ -14,9 +14,9 @@ import os as os
 import pandas as pd
 import matplotlib.pyplot as plt
 
-############################################
-#####      Double Deep-Q-Nerwork     #######
-############################################
+###############################################
+#####   Double Recurrent Deep-Q-Nerwork   #####
+###############################################
 
 # Deterministic implements the frame skipping 
 env = gym.make("BreakoutDeterministic-v4")

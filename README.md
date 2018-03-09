@@ -20,4 +20,4 @@ This implementation includes:
 <img src="https://github.com/nus-mornin-lab/FYP2017_Reinforcement_learning_dianwen/blob/master/Experiment_Result/Dueling_DQN_reward_history.png" width= "400" height="350"/> <img src="https://github.com/nus-mornin-lab/FYP2017_Reinforcement_learning_dianwen/blob/master/Experiment_Result/Comparison.png" width= "400" height="350"/>
 
 ### Gameplay
-<img src= "https://github.com/nus-mornin-lab/FYP2017_Reinforcement_learning_dianwen/blob/master/Experiment_Result/Breakout96.gif" width= "450" height= "300">
+<img src= "https://github.com/nus-mornin-lab/FYP2017_Reinforcement_learning_dianwen/blob/master/Experiment_Result/Breakout_Gameplay.gif" width= "450" height= "300">

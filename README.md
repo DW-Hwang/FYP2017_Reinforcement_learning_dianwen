@@ -8,7 +8,7 @@ This implementation includes:
 5. Dueling Deep Q-Network (DuelDQN)
 
 ## Requirements
-- Python 2.7 or Python 3.5
+- Python 3.5
 - [gym](https://github.com/openai/gym)
 - [SciPy](http://www.scipy.org/install.html)
 - [Keras](https://github.com/keras-team/keras)
